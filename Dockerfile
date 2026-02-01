@@ -31,9 +31,29 @@ RUN pnpm ui:build
 
 ENV NODE_ENV=production
 
+# Install dependencies for Homebrew
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    build-essential procps curl file git && \
+    rm -rf /var/lib/apt/lists/*
+
+# Pre-create Linuxbrew directory and give permissions to node user
+RUN mkdir -p /home/linuxbrew/.linuxbrew && \
+    chown -R node:node /home/linuxbrew
+
 # Security hardening: Run as non-root user
 # The node:22-bookworm image includes a 'node' user (uid 1000)
 # This reduces the attack surface by preventing container escape via root privileges
 USER node
+
+# Install Linuxbrew
+# NONINTERACTIVE=1 ensures the script doesn't prompt for input
+RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Add Linuxbrew to PATH
+ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
+
+# Install Gemini CLI via brew
+RUN eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew install gemini-cli
 
 CMD ["node", "dist/index.js"]
